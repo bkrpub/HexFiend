@@ -36,6 +36,9 @@ enum InspectorType_t {
     eInspectorTypeUnsignedInteger,
     eInspectorTypeFloatingPoint,
     eInspectorTypeUTF8Text,
+    eInspectorTypeSLEB128,
+    eInspectorTypeULEB128,
+    eInspectorTypeBinary,
     
     // Total number of inspector types.
     eInspectorTypeCount
@@ -406,6 +409,14 @@ static NSAttributedString *inspectionError(NSString *s) {
         case eInspectorTypeUTF8Text:
             // MAX_EDITABLE_BYTE_COUNT already checked above
             break;
+        case eInspectorTypeSLEB128:
+        case eInspectorTypeULEB128:
+        case eInspectorTypeBinary:
+            if(range.length > 24) {
+                if(outIsError) *outIsError = YES;
+                return inspectionError(InspectionErrorTooMuch);
+            }
+            break;
         default:
             if(outIsError) *outIsError = YES;
             return inspectionError(InspectionErrorInternal);
@@ -458,7 +469,77 @@ static NSAttributedString *inspectionError(NSString *s) {
             if(outIsError) *outIsError = NO;
             return ret;
         }
+        case eInspectorTypeBinary: {
+            NSString* ret = [[[NSString alloc] init] autorelease];
+            
+            for (NSUInteger i = 0; i < length; ++i) {
+                char input = bytes[i];
+
+                char binary[] = "00000000";
+                
+                if ( input & 0x80 )
+                    binary[0] = '1';
+                
+                if ( input & 0x40 )
+                    binary[1] = '1';
+                
+                if ( input & 0x20 )
+                    binary[2] = '1';
+                
+                if ( input & 0x10 )
+                    binary[3] = '1';
+                
+                if ( input & 0x08 )
+                    binary[4] = '1';
+                
+                if ( input & 0x04 )
+                    binary[5] = '1';
+                
+                if ( input & 0x02 )
+                    binary[6] = '1';
+                
+                if ( input & 0x01 )
+                    binary[7] = '1';
+
+                ret = [ret stringByAppendingFormat:@"%s ", binary ];
+            }
+            
+            return  ret;
+        }
         
+        case eInspectorTypeSLEB128: {
+            int64_t result = 0;
+            int shift = 0;
+            for (size_t i = 0; i < length; i++) {
+                result |= ((bytes[i] & 0x7F) << shift);
+                shift += 7;
+                
+                if ((bytes[i] & 0x80) == 0) {
+                    if (shift < 64 && (bytes[i] & 0x40)) {
+                        result |= -(1 << shift);
+                    }
+                    return [NSString stringWithFormat:@"%qd (%ld bytes)", result, i + 1];
+                }
+            }
+            
+            return inspectionError(InspectionErrorTooLittle);
+        }
+        
+        case eInspectorTypeULEB128: {
+            uint64_t result = 0;
+            int shift = 0;
+            for (size_t i = 0; i < length; i++) {
+                result |= ((bytes[i] & 0x7F) << shift);
+                shift += 7;
+                
+                if ((bytes[i] & 0x80) == 0) {
+                    return [NSString stringWithFormat:@"%qu (%ld bytes)", result, i + 1];
+                }
+            }
+            
+            return inspectionError(InspectionErrorTooLittle);
+        }
+            
         default:
             return inspectionError(InspectionErrorInternal);
     }
@@ -856,7 +937,18 @@ static BOOL stringRangeIsNullBytes(NSString *string, NSRange range) {
     else {
         NSLog(@"Unknown column identifier %@", ident);
     }
-    
+}
+
+- (void)tableView:(NSTableView *)__unused tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)__unused row
+{
+    NSString *ident = [tableColumn identifier];
+    if ([ident isEqualToString:kInspectorSubtypeColumnIdentifier]) {
+        DataInspector *inspector = inspectors[row];
+        bool allowsEndianness = (inspector.type == eInspectorTypeSignedInteger ||
+                                 inspector.type == eInspectorTypeUnsignedInteger ||
+                                 inspector.type == eInspectorTypeFloatingPoint);
+        [cell setEnabled:allowsEndianness];
+    }
 }
 
 - (void)resizeTableViewAfterChangingRowCount {

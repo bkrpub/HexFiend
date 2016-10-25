@@ -88,6 +88,7 @@ static inline Class preferredByteArrayClass(void) {
         NSDictionary *defs = @{
             @"AntialiasText"   : @YES,
             @"ShowCallouts"    : @YES,
+            @"HideNullBytes"   : @NO,
             @"DefaultFontName" : HFDEFAULT_FONT,
             @"DefaultFontSize" : @(HFDEFAULT_FONTSIZE),
             @"BytesPerColumn"  : @4,
@@ -123,6 +124,7 @@ static inline Class preferredByteArrayClass(void) {
         NSDictionary *defs = @{
             @"AntialiasText" : @YES,
             @"ShowCallouts" : @YES,
+            @"HideNullBytes" : @NO,
             @"DefaultFontName" : HFDEFAULT_FONT,
             @"DefaultFontSize" : @(HFDEFAULT_FONTSIZE),
             @"BytesPerColumn" : @4,
@@ -521,6 +523,7 @@ static inline Class preferredByteArrayClass(void) {
     [controller setShouldAntialias:[defs boolForKey:@"AntialiasText"]];
     [controller setShouldColorBytes:[defs boolForKey:@"ColorBytes"]];
     [controller setShouldShowCallouts:[defs boolForKey:@"ShowCallouts"]];
+    [controller setShouldHideNullBytes:[defs boolForKey:@"HideNullBytes"]];
     [controller setShouldLiveReload:[defs boolForKey:@"LiveReload"]];
     [controller setUndoManager:[self undoManager]];
     [controller setBytesPerColumn:[defs integerForKey:@"BytesPerColumn"]];
@@ -774,6 +777,13 @@ static inline Class preferredByteArrayClass(void) {
     [[NSUserDefaults standardUserDefaults] setBool:newVal forKey:@"ShowCallouts"];
 }
 
+- (IBAction)setShowNullBytesFromMenuItem:(id)sender {
+    USE(sender);
+    BOOL newVal = ! [controller shouldHideNullBytes];
+    [controller setShouldHideNullBytes:newVal];
+    [[NSUserDefaults standardUserDefaults] setBool:newVal forKey:@"HideNullBytes"];
+}
+
 
 - (IBAction)setColorBytesFromMenuItem:(id)sender {
     USE(sender);
@@ -843,6 +853,10 @@ static inline Class preferredByteArrayClass(void) {
     }
     else if (action == @selector(setShowCalloutsFromMenuItem:)) {
         [item setState:[controller shouldShowCallouts]];
+        return YES;
+    }
+    else if (action == @selector(setShowNullBytesFromMenuItem:)) {
+        [item setState:[controller shouldHideNullBytes]];
         return YES;
     }
     else if (action == @selector(setLiveReloadFromMenuItem:)) {
@@ -1942,6 +1956,13 @@ cancelled:;
     liveReloadDate = [[NSDate date] retain];
     
     return error ? NO : YES;
+}
+
+- (BOOL)prepareSavePanel:(NSSavePanel *)savePanel
+{
+    savePanel.treatsFilePackagesAsDirectories = YES;
+    savePanel.showsHiddenFiles = YES;
+    return YES;
 }
 
 @end
