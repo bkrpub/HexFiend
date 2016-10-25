@@ -66,8 +66,11 @@
     }
 }
 
+
+#if DEPRECATED_DOCUMENT_CONTROLLER_API
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-implementations"
+
 - (id)openDocumentWithContentsOfURL:(NSURL *)absoluteURL display:(BOOL)displayDocument error:(NSError **)outError {
 #pragma clang diagnostic pop
     BaseDataDocument *transientDoc = [self transientDocumentToReplace];
@@ -84,6 +87,27 @@
     
     return result;
 }
+#else
+- (void)openDocumentWithContentsOfURL:(NSURL *)url display:(BOOL)displayDocument completionHandler:(void (^)(NSDocument * __nullable document, BOOL documentWasAlreadyOpen, NSError * __nullable error))completionHandler {
+    
+    BaseDataDocument *transientDoc = [self transientDocumentToReplace];
+    
+    // Don't make NSDocumentController display the NSDocument it creates. Instead, do it later manually to ensure that the transient document has been replaced first.
+
+    [super openDocumentWithContentsOfURL:url display:NO completionHandler: ^(NSDocument * __nullable result, BOOL documentWasAlreadyOpen, NSError * __nullable error){
+
+        if (result) {
+            if ([result isKindOfClass:[BaseDataDocument class]] && transientDoc) {
+                [transientDoc setTransient:NO];
+                [self replaceTransientDocument:@[transientDoc, result]];
+            }
+            if (displayDocument) [self displayDocument:result];
+        }
+    
+        completionHandler(result, documentWasAlreadyOpen, error);
+    }];
+}
+#endif
 
 - (id)openUntitledDocumentAndDisplay:(BOOL)displayDocument error:(NSError **)outError {
     BaseDataDocument *doc = [super openUntitledDocumentAndDisplay:displayDocument error:outError];
