@@ -108,6 +108,7 @@ static inline Class preferredByteArrayClass(void) {
             USERDEFS_KEY_FOR_REP(lineCountingRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(hexRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(asciiRepresenter) : @YES,
+            USERDEFS_KEY_FOR_REP(ebcdicRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(dataInspectorRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(statusBarRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(scrollRepresenter) : @YES,
@@ -128,6 +129,7 @@ static inline Class preferredByteArrayClass(void) {
             USERDEFS_KEY_FOR_REP(lineCountingRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(hexRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(asciiRepresenter) : @YES,
+            USERDEFS_KEY_FOR_REP(ebcdicRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(dataInspectorRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(statusBarRepresenter) : @YES,
             USERDEFS_KEY_FOR_REP(scrollRepresenter) : @YES,
@@ -154,7 +156,7 @@ static inline Class preferredByteArrayClass(void) {
 }
 
 - (NSArray *)representers {
-    return @[lineCountingRepresenter, hexRepresenter, asciiRepresenter, scrollRepresenter, dataInspectorRepresenter, statusBarRepresenter, textDividerRepresenter];
+    return @[lineCountingRepresenter, hexRepresenter, asciiRepresenter, ebcdicRepresenter, scrollRepresenter, dataInspectorRepresenter, statusBarRepresenter, textDividerRepresenter, ebcdicDividerRepresenter];
 }
 
 - (HFByteArray *)byteArray {
@@ -192,6 +194,11 @@ static inline Class preferredByteArrayClass(void) {
     } else if (! dividerRepresenterShouldBeShown && dividerRepresenterIsShown) {
         [self hideViewForRepresenter:textDividerRepresenter];
     }
+
+    BOOL ebcdicDividerRepresenterIsShown = [self representerIsShown:ebcdicDividerRepresenter];
+    if( ! ebcdicDividerRepresenterIsShown ) {
+        [self showViewForRepresenter: ebcdicDividerRepresenter];
+    }
 }
 
 /* Code to save to user defs (NO) or apply from user defs (YES) the default representers to show. */
@@ -203,6 +210,7 @@ static inline Class preferredByteArrayClass(void) {
         {USERDEFS_KEY_FOR_REP(lineCountingRepresenter), lineCountingRepresenter},
         {USERDEFS_KEY_FOR_REP(hexRepresenter), hexRepresenter},
         {USERDEFS_KEY_FOR_REP(asciiRepresenter), asciiRepresenter},
+        {USERDEFS_KEY_FOR_REP(ebcdicRepresenter), ebcdicRepresenter},
         {USERDEFS_KEY_FOR_REP(dataInspectorRepresenter), dataInspectorRepresenter},
         {USERDEFS_KEY_FOR_REP(statusBarRepresenter), statusBarRepresenter},
         {USERDEFS_KEY_FOR_REP(scrollRepresenter), scrollRepresenter}
@@ -484,14 +492,24 @@ static inline Class preferredByteArrayClass(void) {
     lineCountingRepresenter = [[HFLineCountingRepresenter alloc] init];
     hexRepresenter = [[HFHexTextRepresenter alloc] init];
     asciiRepresenter = [[HFStringEncodingTextRepresenter alloc] init];
+    ((HFStringEncodingTextRepresenter*)asciiRepresenter).encoding = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingWindowsLatin1);
+    ebcdicRepresenter = [[HFStringEncodingTextRepresenter alloc] init];
+    ((HFStringEncodingTextRepresenter*)ebcdicRepresenter).encoding = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingEBCDIC_CP037);
+    
     scrollRepresenter = [[HFVerticalScrollerRepresenter alloc] init];
     layoutRepresenter = [[HFLayoutRepresenter alloc] init];
     statusBarRepresenter = [[HFStatusBarRepresenter alloc] init];
     dataInspectorRepresenter = [[DataInspectorRepresenter alloc] init];
     textDividerRepresenter = [[TextDividerRepresenter alloc] init];
+    ebcdicDividerRepresenter = [[TextDividerRepresenter alloc] init];
+
+    ebcdicDividerRepresenter.layoutPosition = NSMakePoint(1.1, 0);
+    ebcdicRepresenter.layoutPosition = NSMakePoint(1.2, 0);
+
     
     [(NSView *)[hexRepresenter view] setAutoresizingMask:NSViewHeightSizable];
     [(NSView *)[asciiRepresenter view] setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [(NSView *)[ebcdicRepresenter view] setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     [center addObserver:self selector:@selector(lineCountingViewChangedWidth:) name:HFLineCountingRepresenterMinimumViewWidthChanged object:lineCountingRepresenter];
@@ -537,11 +555,13 @@ static inline Class preferredByteArrayClass(void) {
     
     [hexRepresenter release];
     [asciiRepresenter release];
+    [ebcdicRepresenter release];
     [scrollRepresenter release];
     [layoutRepresenter release];
     [statusBarRepresenter release];
     [dataInspectorRepresenter release];
     [textDividerRepresenter release];
+    [ebcdicDividerRepresenter release];
     
     [controller release];
     [bannerView release];

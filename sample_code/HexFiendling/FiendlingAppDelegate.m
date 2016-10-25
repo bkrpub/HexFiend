@@ -55,7 +55,7 @@
 
 - (void)setUpFileMultipleViewIntoView:(NSView *)containerView {
     /* We're going to show the contents of mach_kernel */
-    HFFileReference *reference = [[HFFileReference alloc] initWithPath:@"/mach_kernel" error:NULL];
+    HFFileReference *reference = [[HFFileReference alloc] initWithPath:@"/bin/sh" error:NULL];
     
     /* Make a controller to hook everything up, and then configure it a bit. */
     fileController = [[HFController alloc] init];
@@ -71,17 +71,24 @@
     HFLayoutRepresenter *layoutRep = [[HFLayoutRepresenter alloc] init];
     HFHexTextRepresenter *hexRep = [[HFHexTextRepresenter alloc] init];
     HFStringEncodingTextRepresenter *asciiRep = [[HFStringEncodingTextRepresenter alloc] init];
+    HFStringEncodingTextRepresenter *ebcdicRep = [[HFStringEncodingTextRepresenter alloc] init];
     HFVerticalScrollerRepresenter *scrollRep = [[HFVerticalScrollerRepresenter alloc] init];
+
+    asciiRep.encoding = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingWindowsLatin1);
+    ebcdicRep.encoding = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingEBCDIC_CP037);
+
     
     /* Add all our reps to the controller. */
     [fileController addRepresenter:layoutRep];
     [fileController addRepresenter:hexRep];
     [fileController addRepresenter:asciiRep];
+    [fileController addRepresenter:ebcdicRep];
     [fileController addRepresenter:scrollRep];
     
     /* Tell the layout rep which reps it should lay out. */    
     [layoutRep addRepresenter:hexRep];
     [layoutRep addRepresenter:asciiRep];
+    [layoutRep addRepresenter:ebcdicRep];
     [layoutRep addRepresenter:scrollRep];
     
     /* Grab the layout rep's view and stick it into our container. */
@@ -89,6 +96,8 @@
     [layoutView setFrame:[containerView bounds]];
     [layoutView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [containerView addSubview:layoutView];
+
+    
 }
 
 - (void)setUpExternalDataView:(NSView *)containerView {
